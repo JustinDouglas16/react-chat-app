@@ -10,7 +10,7 @@ A chat interface powered by Hugging Face's API router, built with React, TypeScr
 ## Features
 
 - 💬 Real-time chat with AI models via Hugging Face
-- 🎨 Clean dark UI with shadcn/ui components
+- 🎨 Clean light UI with shadcn/ui components
 - 📝 Markdown rendering (tables, code blocks, bold, etc.)
 - ⌨️ Send with Enter, new line with Shift+Enter
 - 🔒 API key stays secure on the server
