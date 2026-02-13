@@ -9,6 +9,9 @@ lerna-debug.log*
 
 node_modules
 .env
+chat.db
+chat.db-wal
+chat.db-shm
 dist
 dist-ssr
 *.local

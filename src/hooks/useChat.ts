@@ -1,17 +1,37 @@
 import { useState, useCallback, useRef } from "react";
 import type { Message } from "@/lib/types";
 
-export function useChat() {
+export function useChat(conversationId: string | null) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  const loadMessages = useCallback(async (convId: string) => {
+    try {
+      const res = await fetch(`/api/conversations/${convId}/messages`);
+      const data = await res.json();
+      setMessages(
+        data.map((m: { role: string; content: string }) => ({
+          role: m.role,
+          content: m.content,
+        })),
+      );
+    } catch {
+      console.error("Failed to load messages");
+    }
+  }, []);
+
   const sendMessage = useCallback(
     async (content: string) => {
+      if (!conversationId) return;
+
       const userMessage: Message = { role: "user", content };
       const updatedMessages = [...messages, userMessage];
 
-      setMessages([...updatedMessages, { role: "assistant", content: "" }]);
+      setMessages([
+        ...updatedMessages,
+        { role: "assistant", content: "" },
+      ]);
       setIsLoading(true);
 
       abortControllerRef.current = new AbortController();
@@ -20,20 +40,19 @@ export function useChat() {
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: updatedMessages }),
+          body: JSON.stringify({
+            messages: updatedMessages,
+            conversationId,
+          }),
           signal: abortControllerRef.current.signal,
         });
 
-        if (!res.ok) {
-          throw new Error("Request failed");
-        }
+        if (!res.ok) throw new Error("Request failed");
 
         const reader = res.body?.getReader();
         const decoder = new TextDecoder();
 
-        if (!reader) {
-          throw new Error("No reader available");
-        }
+        if (!reader) throw new Error("No reader available");
 
         let assistantContent = "";
 
@@ -76,12 +95,15 @@ export function useChat() {
                 return updated;
               });
             } catch {
-              // Skip malformed JSON chunks
+              // Skip malformed JSON
             }
           }
         }
       } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") {
+        if (
+          err instanceof DOMException &&
+          err.name === "AbortError"
+        ) {
           return;
         }
         setMessages((prev) => {
@@ -97,7 +119,7 @@ export function useChat() {
         abortControllerRef.current = null;
       }
     },
-    [messages],
+    [messages, conversationId],
   );
 
   const stopGenerating = useCallback(() => {
@@ -111,5 +133,12 @@ export function useChat() {
     setIsLoading(false);
   }, []);
 
-  return { messages, isLoading, sendMessage, stopGenerating, clearMessages };
+  return {
+    messages,
+    isLoading,
+    sendMessage,
+    stopGenerating,
+    clearMessages,
+    loadMessages,
+  };
 }

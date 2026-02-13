@@ -7,22 +7,48 @@ import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useChat } from "@/hooks/useChat";
 import {
   Loader2,
-  Trash2,
   BotMessageSquare,
   Square,
 } from "lucide-react";
 
-export function ChatContainer() {
-  const { messages, isLoading, sendMessage, stopGenerating, clearMessages } =
-    useChat();
+interface ChatContainerProps {
+  conversationId: string | null;
+  onFirstMessage?: () => void;
+}
+
+export function ChatContainer({
+  conversationId,
+  onFirstMessage,
+}: ChatContainerProps) {
+  const {
+    messages,
+    isLoading,
+    sendMessage,
+    stopGenerating,
+    loadMessages,
+  } = useChat(conversationId);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (conversationId) {
+      loadMessages(conversationId);
+    }
+  }, [conversationId, loadMessages]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
 
+  const handleSend = async (content: string) => {
+    if (!conversationId && onFirstMessage) {
+      onFirstMessage();
+      return;
+    }
+    await sendMessage(content);
+  };
+
   return (
-    <div className="flex h-screen flex-col bg-background">
+    <div className="flex flex-1 flex-col bg-background">
       {/* Header */}
       <header className="flex items-center justify-between border-b border-border/50 bg-card/50 px-6 py-4 backdrop-blur-sm">
         <div className="flex items-center gap-3">
@@ -38,25 +64,29 @@ export function ChatContainer() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={clearMessages}
-            disabled={messages.length === 0}
-            className="text-muted-foreground hover:text-destructive"
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Clear
-          </Button>
-        </div>
+        <ThemeToggle />
       </header>
 
       {/* Messages */}
       <ScrollArea className="flex-1 px-4">
         <div className="mx-auto flex max-w-3xl flex-col gap-5 py-6">
-          {messages.length === 0 && (
+          {!conversationId && (
+            <div className="flex flex-col items-center justify-center gap-4 py-24 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-glow/10 ring-1 ring-blue-glow/20">
+                <BotMessageSquare className="h-8 w-8 text-blue-glow" />
+              </div>
+              <div>
+                <p className="text-lg font-medium text-foreground">
+                  Select or start a conversation
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Create a new chat from the sidebar to get started.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {conversationId && messages.length === 0 && !isLoading && (
             <div className="flex flex-col items-center justify-center gap-4 py-24 text-center">
               <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-glow/10 ring-1 ring-blue-glow/20">
                 <BotMessageSquare className="h-8 w-8 text-blue-glow" />
@@ -106,7 +136,10 @@ export function ChatContainer() {
 
       {/* Input */}
       <div className="mx-auto w-full max-w-3xl">
-        <ChatInput onSend={sendMessage} disabled={isLoading} />
+        <ChatInput
+          onSend={handleSend}
+          disabled={isLoading || !conversationId}
+        />
       </div>
     </div>
   );
